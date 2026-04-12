@@ -11,6 +11,13 @@ const CAST_BASE_MS = 5000;
 const CAST_MS_PER_MAGIC_LV = -45;
 const CAST_MIN_MS = 2000;
 
+const CHANNEL_BASE_MS = 5000;
+const CHANNEL_MS_PER_MAGIC_LV = -40;
+const CHANNEL_MIN_MS = 2500;
+
+/** 忘れられた城塞を越えて奈落に到達したら true（ギルド投資解放） */
+const FORTRESS_ZONE_INDEX = 2;
+
 const UPGRADES = [
   {
     id: "blade",
@@ -26,20 +33,20 @@ const UPGRADES = [
     desc: "武器のオート攻撃（毎秒ダメージ）。放置の主軸。",
     baseCost: 32,
     costMult: 1.142,
-    effect: (lv) => Math.max(0, Math.floor(7 + lv * 5.8)),
+    effect: (lv) => Math.max(0, Math.floor(8 + lv * 6.1)),
   },
   {
     id: "bounty",
-    title: "懸賞金の看板",
-    desc: "撃破ゴールド倍率",
-    baseCost: 120,
-    costMult: 1.18,
-    effect: (lv) => 1 + lv * 0.08,
+    title: "冒険者ギルドに投資",
+    desc: "撃破ゴールド倍率。忘れられた城塞を越え、奈落に到達すると購入可能。",
+    baseCost: 95,
+    costMult: 1.172,
+    effect: (lv) => 1 + lv * 0.072,
   },
   {
     id: "fury",
-    title: "戦狂の血",
-    desc: "全ダメージ乗算（小さく積む）",
+    title: "レベルアップ",
+    desc: "基礎ステが上がり、武器と魔法の両方のダメージが乗算で伸びる",
     baseCost: 500,
     costMult: 1.22,
     effect: (lv) => 1 + lv * 0.05,
@@ -79,6 +86,7 @@ function defaultState() {
     lastTs: Date.now(),
     totalKillsEver: 0,
     nextCastAt: 0,
+    castChannelEnd: 0,
     _lastFrame: 0,
   };
 }
@@ -92,6 +100,7 @@ function loadState() {
     const merged = { ...d, ...p, upgrades: { ...d.upgrades, ...(p.upgrades || {}) } };
     if (merged.totalKillsEver == null) merged.totalKillsEver = merged.kills;
     if (merged.nextCastAt == null) merged.nextCastAt = 0;
+    if (merged.castChannelEnd == null) merged.castChannelEnd = 0;
     return merged;
   } catch {
     return defaultState();
@@ -104,8 +113,20 @@ function saveState(s) {
   localStorage.setItem(SAVE_KEY, JSON.stringify(copy));
 }
 
-function zoneDepth(s) {
-  return s.zoneIndex * 4 + s.monsterIndex + 1;
+function guildUnlocked(s) {
+  return (s.zoneIndex || 0) > FORTRESS_ZONE_INDEX;
+}
+
+/** 単調な戦闘階層（HP・報酬計算）。撃破数に連動 */
+function battleDepth(s) {
+  return Math.max(1, (s.kills || 0) + 1);
+}
+
+/** UI 用：城塞クリア前は到達目安 12、以降は無限表記 */
+function floorDisplay(s) {
+  const cur = battleDepth(s);
+  const max = guildUnlocked(s) ? "∞" : "12";
+  return `${cur} / ${max}`;
 }
 
 function monsterName(s) {
@@ -122,13 +143,18 @@ function baseMonsterHp(depth) {
 }
 
 function goldPerKill(depth, bountyMult) {
-  const base = 3 + depth * 2;
+  const base = 4 + depth * 2.35;
   return Math.floor(base * bountyMult);
 }
 
 function castCooldownMs(s) {
   const lv = s.upgrades.blade || 0;
   return Math.max(CAST_MIN_MS, CAST_BASE_MS + lv * CAST_MS_PER_MAGIC_LV);
+}
+
+function channelDurationMs(s) {
+  const lv = s.upgrades.blade || 0;
+  return Math.max(CHANNEL_MIN_MS, CHANNEL_BASE_MS + lv * CHANNEL_MS_PER_MAGIC_LV);
 }
 
 function spellDamage(s) {
@@ -150,6 +176,7 @@ function idleDps(s) {
 }
 
 function bountyMult(s) {
+  if (!guildUnlocked(s)) return 1;
   const b = UPGRADES.find((u) => u.id === "bounty");
   return b.effect(s.upgrades.bounty || 0);
 }
@@ -159,7 +186,7 @@ function upgradeCost(u, level) {
 }
 
 function spawnMonster(s) {
-  const depth = zoneDepth(s);
+  const depth = battleDepth(s);
   s.monsterMaxHp = baseMonsterHp(depth);
   s.monsterHp = s.monsterMaxHp;
 }
@@ -180,7 +207,7 @@ function applyDamage(s, amt) {
     const hp = s.monsterHp;
     if (remaining >= hp) {
       remaining -= hp;
-      const depth = zoneDepth(s);
+      const depth = battleDepth(s);
       s.gold += goldPerKill(depth, bountyMult(s));
       s.kills += 1;
       s.totalKillsEver = (s.totalKillsEver || 0) + 1;
@@ -210,7 +237,7 @@ function tickOffline(s, now) {
       break;
     }
     remaining -= timeToKill;
-    const depth = zoneDepth(s);
+    const depth = battleDepth(s);
     s.gold += goldPerKill(depth, bountyMult(s));
     s.kills += 1;
     s.totalKillsEver = (s.totalKillsEver || 0) + 1;
@@ -256,14 +283,19 @@ function renderUpgrades() {
     const cost = upgradeCost(u, lv);
     const li = document.createElement("li");
     li.className = "upgrade-item";
+    const guildLocked = u.id === "bounty" && !guildUnlocked(state);
+    const descText = guildLocked
+      ? `${u.desc}（いまはロック中：忘れられた城塞を越えて奈落へ）`
+      : u.desc;
     li.innerHTML = `
       <span class="title">${u.title} <span class="mono" style="color:var(--gold-dim)">Lv.${lv}</span></span>
-      <span class="desc">${u.desc}</span>
+      <span class="desc">${descText}</span>
       <button type="button" data-id="${u.id}">${fmt(cost)} G</button>
     `;
     const btn = li.querySelector("button");
-    btn.disabled = state.gold < cost;
+    btn.disabled = state.gold < cost || guildLocked;
     btn.addEventListener("click", () => {
+      if (guildLocked) return;
       if (state.gold < cost) return;
       state.gold -= cost;
       state.upgrades[u.id] = lv + 1;
@@ -280,7 +312,7 @@ function render() {
   els.dps.textContent = fmt(idleDps(state));
   els.clickDmg.textContent = fmt(spellDamage(state));
   els.zoneName.textContent = zoneName(state);
-  els.zoneDepth.textContent = String(zoneDepth(state));
+  els.zoneDepth.textContent = floorDisplay(state);
   els.monsterName.textContent = monsterName(state);
   els.monsterHp.textContent = fmt(Math.max(0, state.monsterHp));
   els.monsterMaxHp.textContent = fmt(state.monsterMaxHp);
@@ -297,32 +329,58 @@ function render() {
   updateCastUi();
 }
 
+function tryFinishSpellChannel(s, wall) {
+  const end = s.castChannelEnd || 0;
+  if (end <= 0 || wall < end) return false;
+  applyDamage(s, spellDamage(s));
+  s.castChannelEnd = 0;
+  s.nextCastAt = wall + castCooldownMs(s);
+  s.lastTs = wall;
+  saveState(s);
+  return true;
+}
+
 function updateCastUi(now = Date.now()) {
   const cd = castCooldownMs(state);
-  const ready = now >= (state.nextCastAt || 0);
-  els.strikeBtn.disabled = !ready;
-  if (ready) {
-    els.strikeLabel.textContent = "魔法詠唱";
-    els.castHint.textContent = `詠唱後ディレイ ${(cd / 1000).toFixed(1)} 秒（魔法攻撃レベルで短縮）`;
-  } else {
+  const ch = channelDurationMs(state);
+  const channeling = (state.castChannelEnd || 0) > now;
+  const recovering = now < (state.nextCastAt || 0);
+  els.strikeBtn.disabled = channeling || recovering;
+
+  if (channeling) {
+    const left = Math.max(0, (state.castChannelEnd || 0) - now);
+    els.strikeLabel.textContent = `詠唱中 ${(left / 1000).toFixed(1)}s`;
+    els.castHint.textContent = `あと ${(left / 1000).toFixed(1)} 秒でダメージ。基礎詠唱 ${(ch / 1000).toFixed(1)} 秒（魔法攻撃レベルで短縮）。`;
+  } else if (recovering) {
     const left = Math.max(0, (state.nextCastAt || 0) - now);
-    els.strikeLabel.textContent = `詠唱待ち ${(left / 1000).toFixed(1)}s`;
-    els.castHint.textContent = "魔力が整うまで次の一撃は撃てない。";
+    els.strikeLabel.textContent = `魔力回復 ${(left / 1000).toFixed(1)}s`;
+    els.castHint.textContent = `発動後のディレイ ${(cd / 1000).toFixed(1)} 秒（魔法攻撃レベルで短縮）。`;
+  } else {
+    els.strikeLabel.textContent = "魔法詠唱";
+    els.castHint.textContent = `押すと ${(ch / 1000).toFixed(1)} 秒詠唱してからダメージ。その後 ${(cd / 1000).toFixed(1)} 秒は詠唱不可。`;
   }
 }
 
 function strike() {
-  const now = Date.now();
-  if (now < (state.nextCastAt || 0)) return;
-  applyDamage(state, spellDamage(state));
-  state.nextCastAt = now + castCooldownMs(state);
-  state.lastTs = now;
+  const wall = Date.now();
+  if (tryFinishSpellChannel(state, wall)) {
+    render();
+    return;
+  }
+  if (wall < (state.nextCastAt || 0)) return;
+  if ((state.castChannelEnd || 0) > wall) return;
+  state.castChannelEnd = wall + channelDurationMs(state);
+  state.lastTs = wall;
   saveState(state);
   render();
 }
 
 function gameLoop(rAfNow) {
   const wall = Date.now();
+  if (tryFinishSpellChannel(state, wall)) {
+    lastGoldForUpgrades = state.gold;
+    render();
+  }
   const dt = Math.min(0.25, (rAfNow - (state._lastFrame || rAfNow)) / 1000);
   state._lastFrame = rAfNow;
   const dps = idleDps(state);
@@ -333,7 +391,7 @@ function gameLoop(rAfNow) {
   }
   els.monsterName.textContent = monsterName(state);
   els.zoneName.textContent = zoneName(state);
-  els.zoneDepth.textContent = String(zoneDepth(state));
+  els.zoneDepth.textContent = floorDisplay(state);
   els.monsterHp.textContent = fmt(Math.max(0, state.monsterHp));
   els.monsterMaxHp.textContent = fmt(state.monsterMaxHp);
   const pct = state.monsterMaxHp > 0 ? (100 * state.monsterHp) / state.monsterMaxHp : 0;
@@ -354,7 +412,9 @@ function init() {
   const now = Date.now();
   if (state.totalKillsEver == null) state.totalKillsEver = state.kills;
   if (state.nextCastAt == null) state.nextCastAt = 0;
+  if (state.castChannelEnd == null) state.castChannelEnd = 0;
   tickOffline(state, now);
+  tryFinishSpellChannel(state, now);
   state.lastTs = now;
   if (!state.monsterMaxHp || state.monsterHp == null) spawnMonster(state);
   saveState(state);
@@ -377,6 +437,7 @@ function init() {
     state.monsterIndex = 0;
     state.upgrades = Object.fromEntries(UPGRADES.map((u) => [u.id, 0]));
     state.nextCastAt = 0;
+    state.castChannelEnd = 0;
     spawnMonster(state);
     state.lastTs = Date.now();
     saveState(state);
