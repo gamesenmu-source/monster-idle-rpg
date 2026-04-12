@@ -32,6 +32,11 @@ fi
 if [[ -n "${VERCEL_TOKEN:-}" ]]; then
   npx --yes vercel@41 deploy --prod --yes --token "$VERCEL_TOKEN"
 else
-  echo "Vercel: set VERCEL_TOKEN or run: npx vercel@41 login && npx vercel@41 deploy --prod --yes"
-  exit 2
+  REPO="$("$GH" repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null || echo "")"
+  if [[ -n "$REPO" ]]; then
+    ENC="$(python3 -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1], safe=''))" "https://github.com/${REPO}")"
+    echo "Vercel: import this repo (GitHub → Vercel, no CLI token needed):"
+    echo "  https://vercel.com/new/clone?repository-url=${ENC}"
+  fi
+  echo "Optional CLI: npx vercel@41 login && npx vercel@41 deploy --prod --yes"
 fi

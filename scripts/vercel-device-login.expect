@@ -1,0 +1,30 @@
+#!/usr/bin/expect -f
+# Automates Enter for `vercel login --future` (device flow). Complete auth in the browser when it opens.
+set timeout 600
+set PATH "/Users/syunkuzunoha/Documents/cursor/monster-idle-rpg/.tools/node/bin:$::env(PATH)"
+cd /Users/syunkuzunoha/Documents/cursor/monster-idle-rpg
+log_user 1
+spawn npx --yes vercel@41 login --future
+expect {
+  -re {Visit (https://vercel.com/oauth/device[^\r\n]+)} {
+    set url $expect_out(1,string)
+    puts "\nOpen (if browser did not): $url\n"
+    exec /usr/bin/open $url &
+    exp_continue
+  }
+  "Press \[ENTER\]" {
+    send "\r"
+    exp_continue
+  }
+  "Congratulations" { exp_continue }
+  -re {Logged in as .*} {
+    exit 0
+  }
+  eof {
+    exit 0
+  }
+  timeout {
+    puts stderr "timeout waiting for Vercel login"
+    exit 1
+  }
+}
