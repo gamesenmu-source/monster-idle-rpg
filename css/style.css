@@ -125,6 +125,7 @@ body {
   border-radius: 14px;
   padding: 1.25rem 1.35rem;
   backdrop-filter: blur(10px);
+  overflow: visible;
 }
 
 .zone-meta {
@@ -148,7 +149,47 @@ body {
 }
 
 .monster-panel {
+  position: relative;
   text-align: center;
+  overflow: visible;
+}
+
+.cast-burst {
+  position: absolute;
+  inset: -25% -15% -10%;
+  pointer-events: none;
+  opacity: 0;
+  z-index: 4;
+  background:
+    radial-gradient(ellipse 50% 42% at 50% 78%, rgba(255, 95, 30, 0.55) 0%, transparent 58%),
+    radial-gradient(ellipse 38% 35% at 32% 72%, rgba(255, 210, 90, 0.45) 0%, transparent 52%),
+    radial-gradient(ellipse 38% 35% at 68% 70%, rgba(255, 60, 20, 0.5) 0%, transparent 52%),
+    radial-gradient(ellipse 25% 20% at 48% 62%, rgba(255, 255, 220, 0.35) 0%, transparent 45%);
+  filter: blur(1px);
+  mix-blend-mode: screen;
+}
+
+.cast-burst.cast-burst--show {
+  animation: castBurn 0.7s ease-out forwards;
+}
+
+@keyframes castBurn {
+  0% {
+    opacity: 0;
+    transform: scale(0.65) translateY(12px);
+  }
+  30% {
+    opacity: 1;
+    transform: scale(1.05) translateY(0);
+  }
+  70% {
+    opacity: 0.85;
+    transform: scale(1.08) translateY(-4px);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.2) translateY(-14px);
+  }
 }
 
 .monster-name {
@@ -254,7 +295,7 @@ body {
 .upgrade-item {
   display: grid;
   grid-template-columns: 1fr auto;
-  gap: 0.35rem 0.65rem;
+  gap: 0.2rem 0.65rem;
   padding: 0.65rem 0.75rem;
   background: #120e18;
   border: 1px solid var(--border);
@@ -268,11 +309,65 @@ body {
   grid-column: 1 / -1;
 }
 
-.upgrade-item .desc {
-  font-size: 0.78rem;
-  color: var(--muted);
-  line-height: 1.35;
+.upgrade-tip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
   grid-column: 1;
+  grid-row: 2;
+  align-self: start;
+  cursor: help;
+  user-select: none;
+}
+
+.upgrade-tip-icon {
+  font-size: 0.82rem;
+  line-height: 1;
+  opacity: 0.75;
+  padding: 0.1rem 0.15rem;
+  border-radius: 4px;
+  border: none;
+  background: transparent;
+  color: var(--gold-dim);
+  font-family: inherit;
+  cursor: help;
+}
+
+.upgrade-tip:hover .upgrade-tip-icon,
+.upgrade-tip:focus .upgrade-tip-icon,
+.upgrade-tip:focus-within .upgrade-tip-icon {
+  opacity: 1;
+  color: var(--gold);
+  background: rgba(232, 197, 106, 0.08);
+}
+
+.upgrade-tip-bubble {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 4px);
+  z-index: 30;
+  min-width: 11rem;
+  max-width: min(20rem, 88vw);
+  padding: 0.5rem 0.65rem;
+  background: #16101f;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 0.76rem;
+  line-height: 1.45;
+  color: var(--text);
+  text-align: left;
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.55);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.14s ease, visibility 0.14s ease;
+}
+
+.upgrade-tip:hover .upgrade-tip-bubble,
+.upgrade-tip:focus-within .upgrade-tip-bubble {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
 }
 
 .upgrade-item button {

@@ -53,6 +53,14 @@ const UPGRADES = [
   },
 ];
 
+function escHtml(str) {
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
 function fmt(n) {
   if (n < 1e6) return Math.floor(n).toLocaleString("ja-JP");
   const units = [
@@ -259,6 +267,7 @@ const els = {
   strikeBtn: document.getElementById("strikeBtn"),
   strikeLabel: document.getElementById("strikeLabel"),
   castHint: document.getElementById("castHint"),
+  castBurst: document.getElementById("castBurst"),
   upgradeList: document.getElementById("upgradeList"),
   ascensionSection: document.getElementById("ascensionSection"),
   ascKillsReq: document.getElementById("ascKillsReq"),
@@ -288,8 +297,11 @@ function renderUpgrades() {
       ? `${u.desc}（いまはロック中：忘れられた城塞を越えて奈落へ）`
       : u.desc;
     li.innerHTML = `
-      <span class="title">${u.title} <span class="mono" style="color:var(--gold-dim)">Lv.${lv}</span></span>
-      <span class="desc">${descText}</span>
+      <span class="title">${escHtml(u.title)} <span class="mono" style="color:var(--gold-dim)">Lv.${lv}</span></span>
+      <div class="upgrade-tip" tabindex="0" aria-label="${escHtml(u.title)}の説明">
+        <span class="upgrade-tip-icon" aria-hidden="true">🔍</span>
+        <div class="upgrade-tip-bubble" role="tooltip">${escHtml(descText)}</div>
+      </div>
       <button type="button" data-id="${u.id}">${fmt(cost)} G</button>
     `;
     const btn = li.querySelector("button");
@@ -329,10 +341,20 @@ function render() {
   updateCastUi();
 }
 
+function playCastBurst() {
+  const el = els.castBurst;
+  if (!el) return;
+  el.classList.remove("cast-burst--show");
+  void el.offsetWidth;
+  el.classList.add("cast-burst--show");
+  window.setTimeout(() => el.classList.remove("cast-burst--show"), 720);
+}
+
 function tryFinishSpellChannel(s, wall) {
   const end = s.castChannelEnd || 0;
   if (end <= 0 || wall < end) return false;
   applyDamage(s, spellDamage(s));
+  playCastBurst();
   s.castChannelEnd = 0;
   s.nextCastAt = wall + castCooldownMs(s);
   s.lastTs = wall;
