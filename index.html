@@ -17,11 +17,6 @@
       <header class="hero">
         <p class="tagline">Western Fantasy · Incremental</p>
         <h1>Monster Slayer Idle</h1>
-        <div class="tips-block">
-          <span class="tips-icon">💡</span>
-          <span class="tips-label">tips</span>
-          <span class="tips-text">湧き出る魔物を討て。武器のオート攻撃が常時削り、魔法の一撃が局面を変える。詠唱には間がいる。</span>
-        </div>
       </header>
 
       <section class="stats-bar" aria-label="主要ステータス">
@@ -43,11 +38,16 @@
         </div>
       </section>
 
+      <div class="boss-intro-banner">
+        <span class="boss-intro-icon">⚔</span>
+        <span>ゾーン内の雑魚を <strong>4体</strong> 倒すと <strong>BOSS</strong> 出現。<strong>制限時間内</strong>に討伐すれば次のゾーンへ進める。時間切れは失敗。</span>
+      </div>
+
       <main class="battle">
         <div class="zone-card">
           <div class="zone-meta">
             <span class="zone-name" id="zoneName">辺境の森</span>
-            <span class="zone-depth">階層 <span id="zoneDepth" class="mono">1 / 4</span></span>
+            <span class="zone-depth" id="zoneDepth">ゾーン 1/4 · 雑魚 1/4体</span>
           </div>
           <div class="monster-panel">
             <div class="flame-trail" id="flameTrail" aria-hidden="true"></div>
@@ -95,8 +95,8 @@
         <div class="asc-card">
           <h3>天昇（アセンション）</h3>
           <p>
-            累計討伐 <strong id="ascKillsReq">—</strong> で解放。ソウル
-            <span class="mono" id="souls">0</span> を得て、次周回の基礎火力が伸びる。
+            最終ゾーン「虚無の彼方」到達後に解放。累計討伐 <strong id="ascKillsReq">—</strong> 達成で実行可能。<br>
+            ソウル <span class="mono" id="souls">0</span> を得て全てリセット。ソウル1つにつき火力+20%で次周回が加速する。
           </p>
           <button type="button" class="asc-btn" id="ascendBtn" disabled>天昇する</button>
         </div>
