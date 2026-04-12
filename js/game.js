@@ -7,22 +7,26 @@ const ZONES = [
   { name: "奈落の裂け目", monsters: ["深淵の触手", "影のデーモン", "混沌の使徒", "古き竜の亡霊"] },
 ];
 
+const CAST_BASE_MS = 5000;
+const CAST_MS_PER_MAGIC_LV = -45;
+const CAST_MIN_MS = 2000;
+
 const UPGRADES = [
   {
     id: "blade",
-    title: "研がれた刃",
-    desc: "クリックダメージ +1（レベルごとに増加）",
-    baseCost: 15,
-    costMult: 1.14,
-    effect: (lv) => 1 + Math.floor(lv * 1.2),
+    title: "魔法攻撃",
+    desc: "詠唱一撃の威力（強いが、同じゴールドなら武器強化ほど伸びにくい）",
+    baseCost: 18,
+    costMult: 1.185,
+    effect: (lv) => Math.floor(22 + lv * 26 + lv * lv * 0.35),
   },
   {
     id: "merc",
-    title: "傭兵の契約",
-    desc: "毎秒の自動ダメージ",
-    baseCost: 40,
-    costMult: 1.16,
-    effect: (lv) => Math.max(0, Math.floor(2 + lv * 1.8)),
+    title: "武器強化",
+    desc: "武器のオート攻撃（毎秒ダメージ）。放置の主軸。",
+    baseCost: 32,
+    costMult: 1.142,
+    effect: (lv) => Math.max(0, Math.floor(7 + lv * 5.8)),
   },
   {
     id: "bounty",
@@ -74,6 +78,7 @@ function defaultState() {
     upgrades: Object.fromEntries(UPGRADES.map((u) => [u.id, 0])),
     lastTs: Date.now(),
     totalKillsEver: 0,
+    nextCastAt: 0,
     _lastFrame: 0,
   };
 }
@@ -86,6 +91,7 @@ function loadState() {
     const d = defaultState();
     const merged = { ...d, ...p, upgrades: { ...d.upgrades, ...(p.upgrades || {}) } };
     if (merged.totalKillsEver == null) merged.totalKillsEver = merged.kills;
+    if (merged.nextCastAt == null) merged.nextCastAt = 0;
     return merged;
   } catch {
     return defaultState();
@@ -120,7 +126,12 @@ function goldPerKill(depth, bountyMult) {
   return Math.floor(base * bountyMult);
 }
 
-function clickDamage(s) {
+function castCooldownMs(s) {
+  const lv = s.upgrades.blade || 0;
+  return Math.max(CAST_MIN_MS, CAST_BASE_MS + lv * CAST_MS_PER_MAGIC_LV);
+}
+
+function spellDamage(s) {
   const blade = UPGRADES.find((u) => u.id === "blade");
   const fury = UPGRADES.find((u) => u.id === "fury");
   const lvB = s.upgrades.blade || 0;
@@ -219,6 +230,8 @@ const els = {
   monsterMaxHp: document.getElementById("monsterMaxHp"),
   hpBar: document.getElementById("hpBar"),
   strikeBtn: document.getElementById("strikeBtn"),
+  strikeLabel: document.getElementById("strikeLabel"),
+  castHint: document.getElementById("castHint"),
   upgradeList: document.getElementById("upgradeList"),
   ascensionSection: document.getElementById("ascensionSection"),
   ascKillsReq: document.getElementById("ascKillsReq"),
@@ -265,7 +278,7 @@ function render() {
   els.kills.textContent = fmt(state.kills);
   els.gold.textContent = fmt(state.gold);
   els.dps.textContent = fmt(idleDps(state));
-  els.clickDmg.textContent = fmt(clickDamage(state));
+  els.clickDmg.textContent = fmt(spellDamage(state));
   els.zoneName.textContent = zoneName(state);
   els.zoneDepth.textContent = String(zoneDepth(state));
   els.monsterName.textContent = monsterName(state);
@@ -281,22 +294,41 @@ function render() {
   els.souls.textContent = fmt(state.souls || 0);
   els.ascendBtn.disabled = te < req;
   renderUpgrades();
+  updateCastUi();
+}
+
+function updateCastUi(now = Date.now()) {
+  const cd = castCooldownMs(state);
+  const ready = now >= (state.nextCastAt || 0);
+  els.strikeBtn.disabled = !ready;
+  if (ready) {
+    els.strikeLabel.textContent = "魔法詠唱";
+    els.castHint.textContent = `詠唱後ディレイ ${(cd / 1000).toFixed(1)} 秒（魔法攻撃レベルで短縮）`;
+  } else {
+    const left = Math.max(0, (state.nextCastAt || 0) - now);
+    els.strikeLabel.textContent = `詠唱待ち ${(left / 1000).toFixed(1)}s`;
+    els.castHint.textContent = "魔力が整うまで次の一撃は撃てない。";
+  }
 }
 
 function strike() {
-  applyDamage(state, clickDamage(state));
-  state.lastTs = Date.now();
+  const now = Date.now();
+  if (now < (state.nextCastAt || 0)) return;
+  applyDamage(state, spellDamage(state));
+  state.nextCastAt = now + castCooldownMs(state);
+  state.lastTs = now;
   saveState(state);
   render();
 }
 
-function gameLoop(now) {
-  const dt = Math.min(0.25, (now - (state._lastFrame || now)) / 1000);
-  state._lastFrame = now;
+function gameLoop(rAfNow) {
+  const wall = Date.now();
+  const dt = Math.min(0.25, (rAfNow - (state._lastFrame || rAfNow)) / 1000);
+  state._lastFrame = rAfNow;
   const dps = idleDps(state);
   if (dps > 0 && dt > 0) {
     applyDamage(state, dps * dt);
-    state.lastTs = Date.now();
+    state.lastTs = wall;
     if (Math.random() < 0.05) saveState(state);
   }
   els.monsterName.textContent = monsterName(state);
@@ -309,7 +341,8 @@ function gameLoop(now) {
   els.kills.textContent = fmt(state.kills);
   els.gold.textContent = fmt(state.gold);
   els.dps.textContent = fmt(idleDps(state));
-  els.clickDmg.textContent = fmt(clickDamage(state));
+  els.clickDmg.textContent = fmt(spellDamage(state));
+  updateCastUi(wall);
   if (state.gold !== lastGoldForUpgrades) {
     lastGoldForUpgrades = state.gold;
     renderUpgrades();
@@ -320,6 +353,7 @@ function gameLoop(now) {
 function init() {
   const now = Date.now();
   if (state.totalKillsEver == null) state.totalKillsEver = state.kills;
+  if (state.nextCastAt == null) state.nextCastAt = 0;
   tickOffline(state, now);
   state.lastTs = now;
   if (!state.monsterMaxHp || state.monsterHp == null) spawnMonster(state);
@@ -342,6 +376,7 @@ function init() {
     state.zoneIndex = 0;
     state.monsterIndex = 0;
     state.upgrades = Object.fromEntries(UPGRADES.map((u) => [u.id, 0]));
+    state.nextCastAt = 0;
     spawnMonster(state);
     state.lastTs = Date.now();
     saveState(state);

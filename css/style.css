@@ -207,6 +207,15 @@ body {
   transform: scale(0.97);
 }
 
+.strike-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+  box-shadow: none;
+  background: linear-gradient(180deg, #6a5f78, #4a4258);
+  border-color: var(--border);
+  color: #c8bfd8;
+}
+
 .strike-icon {
   font-size: 1.2rem;
   line-height: 1;

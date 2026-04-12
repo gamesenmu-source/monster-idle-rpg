@@ -18,7 +18,7 @@
         <p class="tagline">Western Fantasy · Incremental</p>
         <h1>Monster Slayer Idle</h1>
         <p class="lede">
-          湧き出る魔物を斬り伏せ、討伐数を積み上げろ。クリックと傭兵の刃が王国の夜を切り開く。
+          湧き出る魔物を討て。武器のオート攻撃が常時削り、魔法の一撃が局面を変える。詠唱には間がいる。
         </p>
       </header>
 
@@ -32,11 +32,11 @@
           <span id="gold" class="stat-value mono">0</span>
         </div>
         <div class="stat">
-          <span class="stat-label">DPS</span>
+          <span class="stat-label">武器（オート）</span>
           <span id="dps" class="stat-value mono">0</span>
         </div>
         <div class="stat">
-          <span class="stat-label">クリック</span>
+          <span class="stat-label">魔法威力</span>
           <span id="clickDmg" class="stat-value mono">0</span>
         </div>
       </section>
@@ -55,11 +55,11 @@
             <p class="hp-text mono">
               <span id="monsterHp">10</span> / <span id="monsterMaxHp">10</span>
             </p>
-            <button type="button" class="strike-btn" id="strikeBtn" aria-label="剣で攻撃">
-              <span class="strike-icon" aria-hidden="true">⚔</span>
-              <span>攻撃</span>
+            <button type="button" class="strike-btn" id="strikeBtn" aria-label="魔法を詠唱">
+              <span class="strike-icon" aria-hidden="true">✧</span>
+              <span id="strikeLabel">魔法詠唱</span>
             </button>
-            <p class="hint">スペースキーでも攻撃できます。</p>
+            <p class="hint" id="castHint">スペースキーでも詠唱できます。</p>
           </div>
         </div>
 
