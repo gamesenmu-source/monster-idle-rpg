@@ -1,28 +1,32 @@
 const SAVE_KEY = "monster-idle-rpg-v1";
 
+// ボス設定
+const BOSS_TIME_LIMIT_MS = 45_000;
+const BOSS_HP_MULT = 8;
+const BOSS_GOLD_MULT = 5;
+
 const ZONES = [
-  { name: "辺境の森", monsters: ["ゴブリン斥候", "森の狼", "腐れスライム", "トレントの苗"] },
-  { name: "灰色の丘陵", monsters: ["オーク戦士", "丘陵のグリフォン", "石化の蛇", "石巨人"] },
-  { name: "忘れられた城塞", monsters: ["骸骨騎士", "幽霊弓兵", "呪われた鎧", "リッチの従者"] },
-  { name: "奈落の裂け目", monsters: ["深淵の触手", "影のデーモン", "混沌の使徒", "古き竜の亡霊"] },
+  { name: "辺境の森",       boss: "森の番人",       monsters: ["ゴブリン斥候", "森の狼", "腐れスライム", "トレントの苗"] },
+  { name: "灰色の丘陵",     boss: "丘陵の覇者",     monsters: ["オーク戦士", "丘陵のグリフォン", "石化の蛇", "石巨人"] },
+  { name: "忘れられた城塞", boss: "城塞の守護者",   monsters: ["骸骨騎士", "幽霊弓兵", "呪われた鎧", "リッチの従者"] },
+  { name: "奈落の裂け目",   boss: "奈落の支配者",   monsters: ["深淵の触手", "影のデーモン", "混沌の使徒", "古き竜の亡霊"] },
 ];
 
+// 詠唱時間・クールダウンは固定（魔法攻撃Lvは威力のみに影響）
 const CAST_BASE_MS = 5000;
-const CAST_MS_PER_MAGIC_LV = -45;
-const CAST_MIN_MS = 2000;
-
 const CHANNEL_BASE_MS = 5000;
-const CHANNEL_MS_PER_MAGIC_LV = -40;
-const CHANNEL_MIN_MS = 2500;
 
-/** 忘れられた城塞を越えて奈落に到達したら true（ギルド投資解放） */
 const FORTRESS_ZONE_INDEX = 2;
+
+// 天昇定数（早期周回しやすいよう調整）
+const ASC_REQ_BASE = 150;
+const ASC_MULT = 2.0;
 
 const UPGRADES = [
   {
     id: "blade",
     title: "魔法攻撃",
-    desc: "詠唱一撃の威力（強いが、同じゴールドなら武器強化ほど伸びにくい）",
+    desc: "詠唱一撃の威力のみを高める。詠唱時間・クールダウンは変わらない。",
     baseCost: 18,
     costMult: 1.185,
     effect: (lv) => Math.floor(22 + lv * 26 + lv * lv * 0.35),
@@ -47,9 +51,9 @@ const UPGRADES = [
     id: "fury",
     title: "レベルアップ",
     desc: "基礎ステが上がり、武器と魔法の両方のダメージが乗算で伸びる",
-    baseCost: 500,
-    costMult: 1.22,
-    effect: (lv) => 1 + lv * 0.05,
+    baseCost: 200,
+    costMult: 1.18,
+    effect: (lv) => 1 + lv * 0.08,
   },
 ];
 
@@ -95,6 +99,8 @@ function defaultState() {
     totalKillsEver: 0,
     nextCastAt: 0,
     castChannelEnd: 0,
+    bossActive: false,
+    bossDeadline: 0,
     _lastFrame: 0,
   };
 }
@@ -109,6 +115,8 @@ function loadState() {
     if (merged.totalKillsEver == null) merged.totalKillsEver = merged.kills;
     if (merged.nextCastAt == null) merged.nextCastAt = 0;
     if (merged.castChannelEnd == null) merged.castChannelEnd = 0;
+    if (merged.bossActive == null) merged.bossActive = false;
+    if (merged.bossDeadline == null) merged.bossDeadline = 0;
     return merged;
   } catch {
     return defaultState();
@@ -125,20 +133,20 @@ function guildUnlocked(s) {
   return (s.zoneIndex || 0) > FORTRESS_ZONE_INDEX;
 }
 
-/** 単調な戦闘階層（HP・報酬計算）。撃破数に連動 */
 function battleDepth(s) {
   return Math.max(1, (s.kills || 0) + 1);
 }
 
-/** UI 用：城塞クリア前は到達目安 12、以降は無限表記 */
 function floorDisplay(s) {
-  const cur = battleDepth(s);
-  const max = guildUnlocked(s) ? "∞" : "12";
-  return `${cur} / ${max}`;
+  const zoneNum = (s.zoneIndex || 0) + 1;
+  if (s.bossActive) return `ゾーン ${zoneNum} · BOSS戦`;
+  const monNum = (s.monsterIndex || 0) + 1;
+  return `ゾーン ${zoneNum} / ${ZONES.length} · ${monNum} / 4`;
 }
 
 function monsterName(s) {
   const z = ZONES[Math.min(s.zoneIndex, ZONES.length - 1)];
+  if (s.bossActive) return `BOSS ${z.boss}`;
   return z.monsters[s.monsterIndex % z.monsters.length];
 }
 
@@ -155,14 +163,12 @@ function goldPerKill(depth, bountyMult) {
   return Math.floor(base * bountyMult);
 }
 
-function castCooldownMs(s) {
-  const lv = s.upgrades.blade || 0;
-  return Math.max(CAST_MIN_MS, CAST_BASE_MS + lv * CAST_MS_PER_MAGIC_LV);
+function castCooldownMs(_s) {
+  return CAST_BASE_MS;
 }
 
-function channelDurationMs(s) {
-  const lv = s.upgrades.blade || 0;
-  return Math.max(CHANNEL_MIN_MS, CHANNEL_BASE_MS + lv * CHANNEL_MS_PER_MAGIC_LV);
+function channelDurationMs(_s) {
+  return CHANNEL_BASE_MS;
 }
 
 function spellDamage(s) {
@@ -199,11 +205,37 @@ function spawnMonster(s) {
   s.monsterHp = s.monsterMaxHp;
 }
 
+function spawnBoss(s) {
+  s.bossActive = true;
+  s.bossDeadline = Date.now() + BOSS_TIME_LIMIT_MS;
+  const depth = battleDepth(s);
+  s.monsterMaxHp = Math.floor(baseMonsterHp(depth) * BOSS_HP_MULT);
+  s.monsterHp = s.monsterMaxHp;
+}
+
+function failBoss(s) {
+  s.bossActive = false;
+  s.bossDeadline = 0;
+  s.monsterIndex = 0;
+  spawnMonster(s);
+}
+
 function advanceMonster(s) {
-  s.monsterIndex += 1;
-  if (s.monsterIndex >= 4) {
+  if (s.bossActive) {
+    // ボス撃破 → 次のゾーンへ
+    s.bossActive = false;
+    s.bossDeadline = 0;
     s.monsterIndex = 0;
     s.zoneIndex = Math.min(s.zoneIndex + 1, ZONES.length - 1);
+    spawnMonster(s);
+    return;
+  }
+  s.monsterIndex += 1;
+  if (s.monsterIndex >= 4) {
+    // 4体撃破 → ボス出現
+    s.monsterIndex = 0;
+    spawnBoss(s);
+    return;
   }
   spawnMonster(s);
 }
@@ -216,7 +248,8 @@ function applyDamage(s, amt) {
     if (remaining >= hp) {
       remaining -= hp;
       const depth = battleDepth(s);
-      s.gold += goldPerKill(depth, bountyMult(s));
+      const goldMult = s.bossActive ? BOSS_GOLD_MULT : 1;
+      s.gold += goldPerKill(depth, bountyMult(s)) * goldMult;
       s.kills += 1;
       s.totalKillsEver = (s.totalKillsEver || 0) + 1;
       advanceMonster(s);
@@ -229,11 +262,39 @@ function applyDamage(s, amt) {
 
 function tickOffline(s, now) {
   const last = s.lastTs || now;
-  const dt = Math.min(86400_000, Math.max(0, now - last));
-  if (dt < 1000) return;
+  const elapsed = Math.min(86400_000, Math.max(0, now - last));
+  if (elapsed < 1000) return;
+
   const dps = idleDps(s);
-  if (dps <= 0) return;
-  let remaining = dt / 1000;
+  let simStart = last;
+
+  // オフライン中のボス処理：自動攻撃だけで倒せるか判定
+  if (s.bossActive) {
+    const deadline = s.bossDeadline || 0;
+    const timeAvail = Math.max(0, (deadline - simStart) / 1000);
+    if (dps > 0 && dps * timeAvail >= s.monsterHp) {
+      // 自動攻撃でボスを撃破
+      const depth = battleDepth(s);
+      s.gold += goldPerKill(depth, bountyMult(s)) * BOSS_GOLD_MULT;
+      s.kills += 1;
+      s.totalKillsEver = (s.totalKillsEver || 0) + 1;
+      simStart = Math.min(simStart + (s.monsterHp / Math.max(dps, 0.001)) * 1000, deadline);
+      s.bossActive = false;
+      s.bossDeadline = 0;
+      s.monsterIndex = 0;
+      s.zoneIndex = Math.min(s.zoneIndex + 1, ZONES.length - 1);
+      spawnMonster(s);
+    } else {
+      // 時間切れ：ボス討伐失敗
+      failBoss(s);
+      simStart = Math.min(deadline, now);
+    }
+  }
+
+  // 通常の自動攻撃オフライン処理
+  let remaining = Math.max(0, (now - simStart) / 1000);
+  if (dps <= 0 || remaining <= 0) return;
+
   let guard = 0;
   while (remaining > 0 && guard++ < 500_000) {
     if (s.monsterHp <= 0) spawnMonster(s);
@@ -250,6 +311,10 @@ function tickOffline(s, now) {
     s.kills += 1;
     s.totalKillsEver = (s.totalKillsEver || 0) + 1;
     advanceMonster(s);
+    // オフライン中はボスが出てもすぐ失敗扱い（プレイヤー不在のため）
+    if (s.bossActive) {
+      failBoss(s);
+    }
   }
 }
 
@@ -268,6 +333,13 @@ const els = {
   strikeLabel: document.getElementById("strikeLabel"),
   castHint: document.getElementById("castHint"),
   castBurst: document.getElementById("castBurst"),
+  flameTrail: document.getElementById("flameTrail"),
+  recoverIndicator: document.getElementById("recoverIndicator"),
+  recoverDonutFill: document.getElementById("recoverDonutFill"),
+  recoverSecs: document.getElementById("recoverSecs"),
+  bossTimer: document.getElementById("bossTimer"),
+  bossTimerFill: document.getElementById("bossTimerFill"),
+  bossTimerSecs: document.getElementById("bossTimerSecs"),
   upgradeList: document.getElementById("upgradeList"),
   ascensionSection: document.getElementById("ascensionSection"),
   ascKillsReq: document.getElementById("ascKillsReq"),
@@ -278,11 +350,10 @@ const els = {
 };
 
 let state = loadState();
-const ASC_REQ_BASE = 250;
 let lastGoldForUpgrades = state.gold;
 
 function ascensionKillsRequired() {
-  return Math.floor(ASC_REQ_BASE * Math.pow(2.2, state.souls || 0));
+  return Math.floor(ASC_REQ_BASE * Math.pow(ASC_MULT, state.souls || 0));
 }
 
 function renderUpgrades() {
@@ -325,7 +396,11 @@ function render() {
   els.clickDmg.textContent = fmt(spellDamage(state));
   els.zoneName.textContent = zoneName(state);
   els.zoneDepth.textContent = floorDisplay(state);
-  els.monsterName.textContent = monsterName(state);
+
+  const name = monsterName(state);
+  els.monsterName.textContent = name;
+  els.monsterName.classList.toggle("monster-name--boss", !!(state.bossActive));
+
   els.monsterHp.textContent = fmt(Math.max(0, state.monsterHp));
   els.monsterMaxHp.textContent = fmt(state.monsterMaxHp);
   const pct = state.monsterMaxHp > 0 ? (100 * state.monsterHp) / state.monsterMaxHp : 0;
@@ -333,7 +408,7 @@ function render() {
 
   const req = ascensionKillsRequired();
   const te = state.totalKillsEver || state.kills;
-  els.ascensionSection.hidden = te < 35;
+  els.ascensionSection.hidden = te < 30;
   els.ascKillsReq.textContent = fmt(req);
   els.souls.textContent = fmt(state.souls || 0);
   els.ascendBtn.disabled = te < req;
@@ -342,12 +417,28 @@ function render() {
 }
 
 function playCastBurst() {
-  const el = els.castBurst;
-  if (!el) return;
-  el.classList.remove("cast-burst--show");
-  void el.offsetWidth;
-  el.classList.add("cast-burst--show");
-  window.setTimeout(() => el.classList.remove("cast-burst--show"), 720);
+  // 1. 炎が敵の名前まで走るトレイル
+  const trail = els.flameTrail;
+  if (trail) {
+    trail.classList.remove("flame-trail--active");
+    void trail.offsetWidth;
+    trail.classList.add("flame-trail--active");
+  }
+
+  // 2. トレイルが到着するタイミングで名前フラッシュ＋バースト
+  setTimeout(() => {
+    els.monsterName.classList.remove("monster-name--hit");
+    void els.monsterName.offsetWidth;
+    els.monsterName.classList.add("monster-name--hit");
+    setTimeout(() => els.monsterName.classList.remove("monster-name--hit"), 600);
+
+    const el = els.castBurst;
+    if (!el) return;
+    el.classList.remove("cast-burst--show");
+    void el.offsetWidth;
+    el.classList.add("cast-burst--show");
+    setTimeout(() => el.classList.remove("cast-burst--show"), 720);
+  }, 380);
 }
 
 function tryFinishSpellChannel(s, wall) {
@@ -372,14 +463,21 @@ function updateCastUi(now = Date.now()) {
   if (channeling) {
     const left = Math.max(0, (state.castChannelEnd || 0) - now);
     els.strikeLabel.textContent = `詠唱中 ${(left / 1000).toFixed(1)}s`;
-    els.castHint.textContent = `あと ${(left / 1000).toFixed(1)} 秒でダメージ。基礎詠唱 ${(ch / 1000).toFixed(1)} 秒（魔法攻撃レベルで短縮）。`;
+    els.recoverIndicator.hidden = true;
+    els.castHint.textContent = `あと ${(left / 1000).toFixed(1)} 秒でダメージ。詠唱時間 ${(ch / 1000).toFixed(1)} 秒。`;
   } else if (recovering) {
     const left = Math.max(0, (state.nextCastAt || 0) - now);
-    els.strikeLabel.textContent = `魔力回復 ${(left / 1000).toFixed(1)}s`;
-    els.castHint.textContent = `発動後のディレイ ${(cd / 1000).toFixed(1)} 秒（魔法攻撃レベルで短縮）。`;
-  } else {
+    const progress = 1 - left / cd;
+    const circumference = 2 * Math.PI * 15; // r=15 → 94.25
+    els.recoverDonutFill.style.strokeDashoffset = circumference * (1 - progress);
+    els.recoverSecs.textContent = (left / 1000).toFixed(1) + "s";
+    els.recoverIndicator.hidden = false;
     els.strikeLabel.textContent = "魔法詠唱";
-    els.castHint.textContent = `押すと ${(ch / 1000).toFixed(1)} 秒詠唱してからダメージ。その後 ${(cd / 1000).toFixed(1)} 秒は詠唱不可。`;
+    els.castHint.textContent = `発動後のクールダウン ${(cd / 1000).toFixed(1)} 秒。`;
+  } else {
+    els.recoverIndicator.hidden = true;
+    els.strikeLabel.textContent = "魔法詠唱";
+    els.castHint.textContent = `詠唱 ${(ch / 1000).toFixed(0)} 秒 → ダメージ発動 → クールダウン ${(cd / 1000).toFixed(0)} 秒。`;
   }
 }
 
@@ -399,10 +497,19 @@ function strike() {
 
 function gameLoop(rAfNow) {
   const wall = Date.now();
+
   if (tryFinishSpellChannel(state, wall)) {
     lastGoldForUpgrades = state.gold;
     render();
   }
+
+  // ボスタイマー切れチェック
+  if (state.bossActive && wall > (state.bossDeadline || 0)) {
+    failBoss(state);
+    saveState(state);
+    render();
+  }
+
   const dt = Math.min(0.25, (rAfNow - (state._lastFrame || rAfNow)) / 1000);
   state._lastFrame = rAfNow;
   const dps = idleDps(state);
@@ -411,7 +518,10 @@ function gameLoop(rAfNow) {
     state.lastTs = wall;
     if (Math.random() < 0.05) saveState(state);
   }
+
+  // 毎フレーム更新
   els.monsterName.textContent = monsterName(state);
+  els.monsterName.classList.toggle("monster-name--boss", !!(state.bossActive));
   els.zoneName.textContent = zoneName(state);
   els.zoneDepth.textContent = floorDisplay(state);
   els.monsterHp.textContent = fmt(Math.max(0, state.monsterHp));
@@ -422,11 +532,25 @@ function gameLoop(rAfNow) {
   els.gold.textContent = fmt(state.gold);
   els.dps.textContent = fmt(idleDps(state));
   els.clickDmg.textContent = fmt(spellDamage(state));
+
+  // ボスタイマーUI
+  if (state.bossActive) {
+    const remaining = Math.max(0, (state.bossDeadline || 0) - wall);
+    const timerPct = (remaining / BOSS_TIME_LIMIT_MS) * 100;
+    els.bossTimer.hidden = false;
+    els.bossTimerFill.style.width = `${timerPct}%`;
+    els.bossTimerSecs.textContent = (remaining / 1000).toFixed(1);
+  } else {
+    els.bossTimer.hidden = true;
+  }
+
   updateCastUi(wall);
+
   if (state.gold !== lastGoldForUpgrades) {
     lastGoldForUpgrades = state.gold;
     renderUpgrades();
   }
+
   requestAnimationFrame(gameLoop);
 }
 
@@ -435,6 +559,14 @@ function init() {
   if (state.totalKillsEver == null) state.totalKillsEver = state.kills;
   if (state.nextCastAt == null) state.nextCastAt = 0;
   if (state.castChannelEnd == null) state.castChannelEnd = 0;
+  if (state.bossActive == null) state.bossActive = false;
+  if (state.bossDeadline == null) state.bossDeadline = 0;
+
+  // ロード時にボスタイマーが既に切れていれば失敗
+  if (state.bossActive && state.bossDeadline < now) {
+    failBoss(state);
+  }
+
   tickOffline(state, now);
   tryFinishSpellChannel(state, now);
   state.lastTs = now;
@@ -457,6 +589,8 @@ function init() {
     state.gold = 0;
     state.zoneIndex = 0;
     state.monsterIndex = 0;
+    state.bossActive = false;
+    state.bossDeadline = 0;
     state.upgrades = Object.fromEntries(UPGRADES.map((u) => [u.id, 0]));
     state.nextCastAt = 0;
     state.castChannelEnd = 0;

@@ -41,6 +41,7 @@ body {
   padding: 1.5rem 1.25rem 3rem;
 }
 
+/* ── Hero ── */
 .hero {
   text-align: center;
   margin-bottom: 1.75rem;
@@ -58,19 +59,41 @@ body {
   font-family: Cinzel, "Times New Roman", serif;
   font-weight: 700;
   font-size: clamp(1.75rem, 5vw, 2.35rem);
-  margin: 0 0 0.6rem;
+  margin: 0 0 0.8rem;
   color: var(--gold);
   text-shadow: 0 0 40px var(--glow);
 }
 
-.lede {
-  max-width: 36rem;
-  margin: 0 auto;
+/* ── Tips ── */
+.tips-block {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.45rem;
+  background: rgba(232, 197, 106, 0.05);
+  border: 1px solid rgba(232, 197, 106, 0.14);
+  border-radius: 8px;
+  padding: 0.45rem 0.85rem;
+  font-size: 0.88rem;
   color: var(--muted);
-  line-height: 1.55;
-  font-size: 0.95rem;
+  line-height: 1.5;
+  max-width: 36rem;
 }
 
+.tips-icon {
+  font-size: 0.88rem;
+  flex-shrink: 0;
+}
+
+.tips-label {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--gold-dim);
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+/* ── Stats bar ── */
 .stats-bar {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -107,6 +130,7 @@ body {
   color: var(--gold);
 }
 
+/* ── Battle layout ── */
 .battle {
   display: grid;
   gap: 1.25rem;
@@ -148,23 +172,55 @@ body {
   color: var(--muted);
 }
 
+/* ── Monster panel ── */
 .monster-panel {
   position: relative;
   text-align: center;
   overflow: visible;
 }
 
+/* ── 炎トレイル（詠唱完了時に敵の名前へ走る） ── */
+.flame-trail {
+  position: absolute;
+  left: 50%;
+  top: 70%;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,255,200,0.95) 0%, #ff9900 38%, #ff3300 72%, transparent 100%);
+  box-shadow: 0 0 16px 7px rgba(255, 110, 0, 0.75), 0 0 32px 14px rgba(255, 50, 0, 0.3);
+  pointer-events: none;
+  z-index: 8;
+  opacity: 0;
+  transform: translate(-50%, -50%);
+}
+
+.flame-trail--active {
+  animation: flameTrailFly 0.44s cubic-bezier(0.3, 0.0, 0.65, 1.0) forwards;
+}
+
+@keyframes flameTrailFly {
+  0%   { opacity: 0;   top: 70%; transform: translate(-50%, -50%) scale(0.35); }
+  7%   { opacity: 1;              transform: translate(-50%, -50%) scale(1.25); }
+  86%  { opacity: 1;   top: 10%; transform: translate(-50%, -50%) scale(1.1);  }
+  100% { opacity: 0;   top: 5%;  transform: translate(-50%, -50%) scale(0.5);  }
+}
+
+/* ── 炎バースト ── */
 .cast-burst {
   position: absolute;
-  inset: -25% -15% -10%;
+  left: -20%;
+  right: -20%;
+  top: -35%;
+  bottom: 30%;
   pointer-events: none;
   opacity: 0;
   z-index: 4;
   background:
-    radial-gradient(ellipse 50% 42% at 50% 78%, rgba(255, 95, 30, 0.55) 0%, transparent 58%),
-    radial-gradient(ellipse 38% 35% at 32% 72%, rgba(255, 210, 90, 0.45) 0%, transparent 52%),
-    radial-gradient(ellipse 38% 35% at 68% 70%, rgba(255, 60, 20, 0.5) 0%, transparent 52%),
-    radial-gradient(ellipse 25% 20% at 48% 62%, rgba(255, 255, 220, 0.35) 0%, transparent 45%);
+    radial-gradient(ellipse 55% 50% at 50% 85%, rgba(255, 95, 30, 0.6) 0%, transparent 60%),
+    radial-gradient(ellipse 40% 38% at 30% 75%, rgba(255, 210, 90, 0.5) 0%, transparent 55%),
+    radial-gradient(ellipse 40% 38% at 70% 73%, rgba(255, 60, 20, 0.55) 0%, transparent 55%),
+    radial-gradient(ellipse 28% 22% at 50% 65%, rgba(255, 255, 220, 0.4) 0%, transparent 48%);
   filter: blur(1px);
   mix-blend-mode: screen;
 }
@@ -174,31 +230,66 @@ body {
 }
 
 @keyframes castBurn {
-  0% {
-    opacity: 0;
-    transform: scale(0.65) translateY(12px);
-  }
-  30% {
-    opacity: 1;
-    transform: scale(1.05) translateY(0);
-  }
-  70% {
-    opacity: 0.85;
-    transform: scale(1.08) translateY(-4px);
-  }
-  100% {
-    opacity: 0;
-    transform: scale(1.2) translateY(-14px);
-  }
+  0%   { opacity: 0;    transform: scale(0.65) translateY(12px); }
+  30%  { opacity: 1;    transform: scale(1.05) translateY(0);    }
+  70%  { opacity: 0.85; transform: scale(1.08) translateY(-4px); }
+  100% { opacity: 0;    transform: scale(1.2)  translateY(-14px);}
 }
 
+/* ── 敵名 ── */
 .monster-name {
   font-family: Cinzel, serif;
   font-size: clamp(1.2rem, 3.5vw, 1.5rem);
-  margin: 0 0 1rem;
+  margin: 0 0 0.75rem;
   color: #f0e8ff;
+  transition: color 0.1s;
 }
 
+.monster-name--boss {
+  color: #ff9f60;
+  text-shadow: 0 0 18px rgba(255, 80, 0, 0.5);
+}
+
+.monster-name--hit {
+  animation: nameHitFlash 0.55s ease-out forwards;
+}
+
+@keyframes nameHitFlash {
+  0%   { color: #f0e8ff; text-shadow: none; }
+  20%  { color: #ffdd66; text-shadow: 0 0 22px rgba(255,180,0,0.95), 0 0 44px rgba(255,80,0,0.55); }
+  55%  { color: #ff7722; text-shadow: 0 0 30px rgba(255,90,0,0.75); }
+  100% { color: #f0e8ff; text-shadow: none; }
+}
+
+/* ── BOSS タイマー ── */
+.boss-timer {
+  margin-bottom: 0.6rem;
+}
+
+.boss-timer-track {
+  height: 6px;
+  border-radius: 3px;
+  background: #1a0f1a;
+  border: 1px solid #5c2020;
+  overflow: hidden;
+  margin-bottom: 0.3rem;
+}
+
+.boss-timer-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #8b1a1a, #e84040, #ff9900);
+  border-radius: 3px;
+  transition: width 0.1s linear;
+}
+
+.boss-timer-label {
+  margin: 0;
+  font-size: 0.75rem;
+  color: #e07070;
+  letter-spacing: 0.03em;
+}
+
+/* ── HP ── */
 .hp-wrap {
   height: 14px;
   border-radius: 7px;
@@ -220,6 +311,15 @@ body {
   margin: 0 0 1.1rem;
   font-size: 0.9rem;
   color: var(--muted);
+}
+
+/* ── 詠唱エリア（ボタン＋回復インジケーター） ── */
+.cast-area {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-bottom: 0;
 }
 
 .strike-btn {
@@ -262,12 +362,65 @@ body {
   line-height: 1;
 }
 
+/* ── 魔力回復インジケーター（ドーナツゲージ） ── */
+.recover-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.recover-donut {
+  width: 46px;
+  height: 46px;
+  transform: rotate(-90deg);
+  flex-shrink: 0;
+}
+
+.recover-donut-bg {
+  fill: none;
+  stroke: #2a2235;
+  stroke-width: 4;
+}
+
+.recover-donut-fill {
+  fill: none;
+  stroke: var(--gold);
+  stroke-width: 4;
+  stroke-dasharray: 94.25; /* 2 * π * 15 */
+  stroke-dashoffset: 94.25;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.15s linear;
+  filter: drop-shadow(0 0 4px rgba(232, 197, 106, 0.6));
+}
+
+.recover-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.1rem;
+}
+
+.recover-label {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--gold-dim);
+}
+
+.recover-secs {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--gold);
+  line-height: 1;
+}
+
 .hint {
   margin: 0.75rem 0 0;
   font-size: 0.8rem;
   color: var(--muted);
 }
 
+/* ── Upgrades ── */
 .upgrades {
   background: var(--panel);
   border: 1px solid var(--border);
@@ -394,6 +547,7 @@ body {
   background: #352a44;
 }
 
+/* ── Ascension ── */
 .ascension {
   margin-top: 1.5rem;
 }
@@ -437,6 +591,7 @@ body {
   background: #3d2858;
 }
 
+/* ── Footer ── */
 .foot {
   margin-top: 2rem;
   text-align: center;

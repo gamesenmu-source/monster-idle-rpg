@@ -17,9 +17,11 @@
       <header class="hero">
         <p class="tagline">Western Fantasy · Incremental</p>
         <h1>Monster Slayer Idle</h1>
-        <p class="lede">
-          湧き出る魔物を討て。武器のオート攻撃が常時削り、魔法の一撃が局面を変える。詠唱には間がいる。
-        </p>
+        <div class="tips-block">
+          <span class="tips-icon">💡</span>
+          <span class="tips-label">tips</span>
+          <span class="tips-text">湧き出る魔物を討て。武器のオート攻撃が常時削り、魔法の一撃が局面を変える。詠唱には間がいる。</span>
+        </div>
       </header>
 
       <section class="stats-bar" aria-label="主要ステータス">
@@ -45,21 +47,40 @@
         <div class="zone-card">
           <div class="zone-meta">
             <span class="zone-name" id="zoneName">辺境の森</span>
-            <span class="zone-depth">階層 <span id="zoneDepth" class="mono">1 / 12</span></span>
+            <span class="zone-depth">階層 <span id="zoneDepth" class="mono">1 / 4</span></span>
           </div>
           <div class="monster-panel">
+            <div class="flame-trail" id="flameTrail" aria-hidden="true"></div>
             <div class="cast-burst" id="castBurst" aria-hidden="true"></div>
             <h2 class="monster-name" id="monsterName">ゴブリン斥候</h2>
+            <div class="boss-timer" id="bossTimer" hidden>
+              <div class="boss-timer-track">
+                <div class="boss-timer-fill" id="bossTimerFill" style="width:100%"></div>
+              </div>
+              <p class="boss-timer-label">残り <span id="bossTimerSecs" class="mono">45</span>s 以内に討伐せよ</p>
+            </div>
             <div class="hp-wrap">
               <div class="hp-bar" id="hpBar" style="width: 100%"></div>
             </div>
             <p class="hp-text mono">
               <span id="monsterHp">10</span> / <span id="monsterMaxHp">10</span>
             </p>
-            <button type="button" class="strike-btn" id="strikeBtn" aria-label="魔法を詠唱">
-              <span class="strike-icon" aria-hidden="true">✧</span>
-              <span id="strikeLabel">魔法詠唱</span>
-            </button>
+            <div class="cast-area">
+              <button type="button" class="strike-btn" id="strikeBtn" aria-label="魔法を詠唱">
+                <span class="strike-icon" aria-hidden="true">✧</span>
+                <span id="strikeLabel">魔法詠唱</span>
+              </button>
+              <div class="recover-indicator" id="recoverIndicator" hidden>
+                <svg class="recover-donut" viewBox="0 0 40 40" aria-hidden="true">
+                  <circle class="recover-donut-bg" cx="20" cy="20" r="15"/>
+                  <circle class="recover-donut-fill" id="recoverDonutFill" cx="20" cy="20" r="15"/>
+                </svg>
+                <div class="recover-info">
+                  <span class="recover-label">回復中</span>
+                  <span class="recover-secs mono" id="recoverSecs">5.0s</span>
+                </div>
+              </div>
+            </div>
             <p class="hint" id="castHint">スペースキーでも詠唱できます。</p>
           </div>
         </div>
