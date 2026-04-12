@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Monster Slayer Idle — 魔物討伐インクリメント</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/css/style.css" />
+  </head>
+  <body>
+    <div class="app">
+      <header class="hero">
+        <p class="tagline">Western Fantasy · Incremental</p>
+        <h1>Monster Slayer Idle</h1>
+        <p class="lede">
+          湧き出る魔物を斬り伏せ、討伐数を積み上げろ。クリックと傭兵の刃が王国の夜を切り開く。
+        </p>
+      </header>
+
+      <section class="stats-bar" aria-label="主要ステータス">
+        <div class="stat">
+          <span class="stat-label">討伐数</span>
+          <span id="kills" class="stat-value mono">0</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">ゴールド</span>
+          <span id="gold" class="stat-value mono">0</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">DPS</span>
+          <span id="dps" class="stat-value mono">0</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">クリック</span>
+          <span id="clickDmg" class="stat-value mono">0</span>
+        </div>
+      </section>
+
+      <main class="battle">
+        <div class="zone-card">
+          <div class="zone-meta">
+            <span class="zone-name" id="zoneName">辺境の森</span>
+            <span class="zone-depth">階層 <span id="zoneDepth">1</span></span>
+          </div>
+          <div class="monster-panel">
+            <h2 class="monster-name" id="monsterName">ゴブリン斥候</h2>
+            <div class="hp-wrap">
+              <div class="hp-bar" id="hpBar" style="width: 100%"></div>
+            </div>
+            <p class="hp-text mono">
+              <span id="monsterHp">10</span> / <span id="monsterMaxHp">10</span>
+            </p>
+            <button type="button" class="strike-btn" id="strikeBtn" aria-label="剣で攻撃">
+              <span class="strike-icon" aria-hidden="true">⚔</span>
+              <span>攻撃</span>
+            </button>
+            <p class="hint">スペースキーでも攻撃できます。</p>
+          </div>
+        </div>
+
+        <aside class="upgrades" aria-label="強化">
+          <h3>酒場の取引</h3>
+          <ul class="upgrade-list" id="upgradeList"></ul>
+        </aside>
+      </main>
+
+      <section class="ascension" id="ascensionSection">
+        <div class="asc-card">
+          <h3>天昇（アセンション）</h3>
+          <p>
+            累計討伐 <strong id="ascKillsReq">—</strong> で解放。ソウル
+            <span class="mono" id="souls">0</span> を得て、次周回の基礎火力が伸びる。
+          </p>
+          <button type="button" class="asc-btn" id="ascendBtn" disabled>天昇する</button>
+        </div>
+      </section>
+
+      <footer class="foot">
+        <button type="button" class="ghost" id="saveBtn">手動セーブ</button>
+        <button type="button" class="ghost danger" id="wipeBtn">データ消去</button>
+        <p class="muted">進行はブラウザに自動保存されます。</p>
+      </footer>
+    </div>
+    <script type="module" src="/js/game.js"></script>
+  </body>
+</html>
