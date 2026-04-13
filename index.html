@@ -19,6 +19,7 @@
         <h1>Monster Slayer Idle</h1>
       </header>
 
+      <!-- ステータス欄（ソウル追加） -->
       <section class="stats-bar" aria-label="主要ステータス">
         <div class="stat">
           <span class="stat-label">討伐数</span>
@@ -36,18 +37,23 @@
           <span class="stat-label">魔法威力</span>
           <span id="clickDmg" class="stat-value mono">0</span>
         </div>
+        <div class="stat stat--souls">
+          <span class="stat-label">ソウル</span>
+          <span id="soulsDisplay" class="stat-value mono souls-value">?</span>
+        </div>
       </section>
 
+      <!-- 進行ガイドバナー -->
       <div class="boss-intro-banner">
         <span class="boss-intro-icon">⚔</span>
         <span>ゾーン内の雑魚を <strong>4体</strong> 倒すと <strong>BOSS</strong> 出現。<strong>制限時間内</strong>に討伐すれば次のゾーンへ進める。時間切れは失敗。</span>
       </div>
 
-      <main class="battle">
+      <main class="battle" id="battleSection">
         <div class="zone-card">
           <div class="zone-meta">
             <span class="zone-name" id="zoneName">辺境の森</span>
-            <span class="zone-depth" id="zoneDepth">ゾーン 1/4 · 雑魚 1/4体</span>
+            <span class="zone-depth" id="zoneDepth">ゾーン 1/6 · 雑魚 1/4体</span>
           </div>
           <div class="monster-panel">
             <div class="flame-trail" id="flameTrail" aria-hidden="true"></div>
@@ -57,7 +63,7 @@
               <div class="boss-timer-track">
                 <div class="boss-timer-fill" id="bossTimerFill" style="width:100%"></div>
               </div>
-              <p class="boss-timer-label">残り <span id="bossTimerSecs" class="mono">45</span>s 以内に討伐せよ</p>
+              <p class="boss-timer-label">残り <span id="bossTimerSecs" class="mono">60</span>s 以内に討伐せよ</p>
             </div>
             <div class="hp-wrap">
               <div class="hp-bar" id="hpBar" style="width: 100%"></div>
@@ -91,14 +97,16 @@
         </aside>
       </main>
 
-      <section class="ascension" id="ascensionSection">
-        <div class="asc-card">
-          <h3>天昇（アセンション）</h3>
-          <p>
-            最終ゾーン「虚無の彼方」到達後に解放。累計討伐 <strong id="ascKillsReq">—</strong> 達成で実行可能。<br>
-            ソウル <span class="mono" id="souls">0</span> を得て全てリセット。ソウル1つにつき火力+20%で次周回が加速する。
+      <!-- 転生パネル（魔王撃破後に表示、通常時は隠す） -->
+      <section class="reincarн-panel" id="reincarnSection" hidden>
+        <div class="reincarн-card">
+          <h2 class="reincarн-title">⚡ 魔王を打ち倒した！</h2>
+          <p class="reincarн-body">
+            魔王城の主を討伐した。今こそ<strong>転生</strong>し、ソウルの力を得よ。<br>
+            転生するとゾーン・ゴールド・投資がリセットされるが、<strong>ソウルが1つ増え</strong>全ての火力が<strong>+20%</strong>永続強化される。<br>
+            ソウルが増えるほど周回は加速し、やがて<strong>魔界</strong>への扉が開かれる。
           </p>
-          <button type="button" class="asc-btn" id="ascendBtn" disabled>天昇する</button>
+          <button type="button" class="reincarн-btn" id="reincarnBtn">転生する</button>
         </div>
       </section>
 
