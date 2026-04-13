@@ -425,13 +425,13 @@ function doReincarnation(s) {
 
 // ─── 表示ヘルパー ─────────────────────────────────────────
 function floorDisplay(s) {
-  const zi      = s.zoneIndex || 0;
-  const zoneNum = zi + 1;
-  const total   = visibleZoneCount(s);
-  if (s.defeatedDemonKing) return `ゾーン ${zoneNum}/${total} · 転生待ち`;
-  if (s.bossActive) return `ゾーン ${zoneNum}/${total} · BOSS戦`;
+  const zi       = s.zoneIndex || 0;
+  const floorNum = zi + 1;
+  const total    = visibleZoneCount(s);
+  if (s.defeatedDemonKing) return `フロア ${floorNum}/${total} · 転生待ち`;
+  if (s.bossActive) return `フロア ${floorNum}/${total} · BOSS戦`;
   const mobNum = (s.monsterIndex || 0) + 1;
-  return `ゾーン ${zoneNum}/${total} · 雑魚 ${mobNum}/${MOBS_PER_ZONE}体`;
+  return `フロア ${floorNum}/${total} · 雑魚 ${mobNum}/${MOBS_PER_ZONE}体`;
 }
 
 function monsterName(s) {
